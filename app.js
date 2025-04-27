@@ -1,28 +1,46 @@
-var http = require('http');
-var url = require('url');
-var fs = require('fs');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
-// Use the port from environment or fallback to 8080 locally
 const port = process.env.PORT || 8080;
 
-http.createServer(function (req, res) {
+const server = http.createServer((req, res) => {
+    console.log(`Request for ${req.url}`);
+    
+    let filePath = '.' + req.url;
+    if (filePath == './') {
+        filePath = './index.html'; // <--- serve index.html on "/"
+    }
 
-    var q = url.parse(req.url, true);
-    var filename = "." + q.pathname;
+    const extname = String(path.extname(filePath)).toLowerCase();
+    const mimeTypes = {
+        '.html': 'text/html',
+        '.js': 'text/javascript',
+        '.css': 'text/css',
+        '.json': 'application/json',
+        '.png': 'image/png',
+        '.jpg': 'image/jpg',
+        '.gif': 'image/gif',
+    };
 
-    fs.readFile(filename, function(err, data) {
-        
-      if (err) {
-        res.writeHead(404, {'Content-Type': 'text/html'});
-        return res.end("404 Not Found");
-      } 
+    const contentType = mimeTypes[extname] || 'application/octet-stream';
 
-      res.writeHead(200, {'Content-Type': 'text/html'});
-      res.write(data);
-      return res.end();
-
+    fs.readFile(filePath, (error, content) => {
+        if (error) {
+            if (error.code == 'ENOENT') {
+                res.writeHead(404, { 'Content-Type': 'text/html' });
+                res.end('404 Not Found', 'utf-8');
+            } else {
+                res.writeHead(500);
+                res.end('Server Error: ' + error.code);
+            }
+        } else {
+            res.writeHead(200, { 'Content-Type': contentType });
+            res.end(content, 'utf-8');
+        }
     });
+});
 
-}).listen(port, () => {
-  console.log(`Server running at port ${port}`);
+server.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });
